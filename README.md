@@ -1,0 +1,1 @@
+This repository contains documentation created for **internship** documentation during the period from **September to December**. The documentation covers various topics and tasks that were undertaken during the internship.
