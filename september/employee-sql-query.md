@@ -19,6 +19,7 @@ SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM](https://
       - [Struktur dan Penjelasan:](#struktur-dan-penjelasan-1)
         - [Pengambilan Data Pendidikan:](#pengambilan-data-pendidikan)
       - [Kesimpulan](#kesimpulan-2)
+    - [Contoh Output](#contoh-output)
 
 ## API 1: Get Identitas Pegawai
 <details>
@@ -363,7 +364,22 @@ Query kedua mengambil detail pendidikan untuk pegawai berdasarkan daftar PERNR y
 - Mengambil informasi tentang pendidikan seperti level pendidikan, nama institusi, tanggal mulai, tanggal selesai, nomor ijazah, dan hasil pendidikan dari tabel `SAFM_PEGAWAI_EDUCATION`.
 - Hanya pegawai yang PERNR-nya ada dalam daftar yang diberikan (`${pernrList}`) yang akan dimasukkan dalam hasil.
 
+### Contoh Output
 
+- Query Pertama
 
+| PERNR       | total_count | nipp_pegawai | nama_pegawai |
+|-------------|-------------|--------------|--------------|
+| 000000284848| 50          | 123456789    | John Doe     |
+
+- Query Kedua (untuk `PERNR 000000284848`):
+
+| PERNR       | level_pendidikan | nama_institusi_pendidikan | tanggal_mulai | tanggal_selesai | nomor_ijazah | ijazah | hasil_pendidikan |
+|-------------|-------------------|---------------------------|---------------|-----------------|--------------|--------|------------------|
+| 000000284848| SD                | SD Negeri Contoh          | 2000-07-01    | 2006-06-01      | 0987654321   |        | Lulus            |
+| 000000284848| SMP               | SMP Negeri Contoh         | 2006-07-01    | 2009-06-01      | 1234567890   |        | Lulus            |
+| 000000284848| SMA               | SMA Negeri Contoh         | 2009-07-01    | 2012-06-01      | 0987654321   |        | Lulus            |
+| 000000284848| S1                | Universitas Contoh        | 2010-09-01    | 2014-05-01      | 1234567890   |        |                  |
+| 000000284848| S2                | Institut Contoh           | 2015-09-01    | 2017-05-01      | 0987654321   |        |                  |
 
 
