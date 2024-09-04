@@ -20,6 +20,14 @@ SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
         - [Pengambilan Data Pendidikan:](#pengambilan-data-pendidikan)
       - [Kesimpulan](#kesimpulan-2)
     - [Contoh Output](#contoh-output)
+  - [API 3: Get Data Keluarga Pegawai](#api-3-get-data-keluarga-pegawai)
+    - [1. Query Pertama](#1-query-pertama-1)
+      - [1. CTE `tpegawai`](#1-cte-tpegawai)
+      - [2. Query Utama](#2-query-utama-1)
+      - [Kesimpulan](#kesimpulan-3)
+    - [2. Query Kedua](#2-query-kedua-1)
+      - [Penjelasan](#penjelasan)
+      - [Kesimpulan](#kesimpulan-4)
 
 ## API 1: Get Identitas Pegawai
 <details>
@@ -382,4 +390,108 @@ Query kedua mengambil detail pendidikan untuk pegawai berdasarkan daftar PERNR y
 | 000000284848| S1                | Universitas Contoh        | 2010-09-01    | 2014-05-01      | 1234567890   |        |                  |
 | 000000284848| S2                | Institut Contoh           | 2015-09-01    | 2017-05-01      | 0987654321   |        |                  |
 
+## API 3: Get Data Keluarga Pegawai
 
+### 1. Query Pertama
+
+<details>
+  <summary>Show SQL Query 1</summary>
+
+```sql
+WITH tpegawai AS ( SELECT msp.*, ROW_NUMBER () OVER(PARTITION BY msp.pernr, msp.pnalt_new ORDER BY msp.pernr ASC) AS row_num 
+        FROM mdm_single_pegawai msp  JOIN (SELECT DISTINCT PERNR FROM SAFM_PEGAWAI_EDUCATION  ${condition}) spe on msp.PERNR = spe.PERNR
+        WHERE 1=1 -- and msp.pernr = '' and msp.pnalt_new = '' and msp.company_code = '' 
+        SELECT msp.PERNR,
+          count(*) OVER() AS total_count, 
+          msp.PNALT_NEW AS nipp_pegawai,
+          msp.cname AS nama_pegawai
+        FROM tpegawai msp
+        JOIN (SELECT DISTINCT PERNR FROM SAFM_PEGAWAI_FAMILY) spf on msp.PERNR = spf.PERNR
+        WHERE msp.pnalt_new IS NOT NULL and msp.row_num = 1-- ${appendQueryNipp} ${appendQueryPernr} ${appendQuery}
+        ORDER BY msp.LAST_UPDATED_DATE DESC
+        OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY
+```
+</details>
+
+**Query pertama** digunakan untuk mengambil data pegawai dari tabel `mdm_single_pegawai` yang memiliki catatan di tabel `SAFM_PEGAWAI_FAMILY`, serta informasi dasar pegawai. Query ini menyaring data berdasarkan pegawai yang valid dan terbaru.
+
+#### 1. CTE `tpegawai`
+
+```sql
+WITH tpegawai AS (
+    SELECT msp.*, 
+           ROW_NUMBER() OVER(PARTITION BY msp.pernr, msp.pnalt_new ORDER BY msp.pernr ASC) AS row_num
+    FROM mdm_single_pegawai msp
+    JOIN (SELECT DISTINCT PERNR FROM SAFM_PEGAWAI_EDUCATION ${condition}) spe 
+    ON msp.PERNR = spe.PERNR
+    WHERE 1=1
+)
+```
+
+- `ROW_NUMBER() OVER(PARTITION BY msp.pernr, msp.pnalt_new ORDER BY msp.pernr ASC) AS row_num`: Menghitung nomor baris untuk setiap pegawai berdasarkan `PERNR` dan `PNALT_NEW`. Setiap `PERNR` dengan `PNALT_NEW` yang sama diberikan nomor urut. Hanya memilih baris pertama dari setiap grup.
+- `JOIN`: Menghubungkan tabel `mdm_single_pegawai` dengan `SAFM_PEGAWAI_EDUCATION` berdasarkan `PERNR`,  hanya menyertakan pegawai yang ada di tabel pendidikan.
+
+#### 2. Query Utama
+
+```sql
+SELECT msp.PERNR,
+       count(*) OVER() AS total_count, 
+       msp.PNALT_NEW AS nipp_pegawai,
+       msp.cname AS nama_pegawai
+FROM tpegawai msp
+JOIN (SELECT DISTINCT PERNR FROM SAFM_PEGAWAI_FAMILY) spf 
+ON msp.PERNR = spf.PERNR
+WHERE msp.pnalt_new IS NOT NULL AND msp.row_num = 1
+ORDER BY msp.LAST_UPDATED_DATE DESC
+OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY
+```
+
+Hasil akhir dari query ini adalah daftar pegawai beserta **jumlah total hasil pencarian**, **nomor identifikasi pegawai (NIPP)**, dan **nama pegawai**, yang kemudian diurutkan berdasarkan tanggal terakhir pembaruan (``LAST_UPDATED_DATE``) dan diatur menggunakan paginasi.
+
+- Query ini memastikan bahwa hanya pegawai yang memiliki data keluarga (terhubung dengan `SAFM_PEGAWAI_FAMILY`) yang akan muncul dalam hasil.
+- `count(*) OVER() AS total_count`: Menghitung jumlah total baris yang sesuai dengan kriteria tanpa memperhatikan batasan paginasi.
+- `WHERE msp.pnalt_new IS NOT NULL AND msp.row_num = 1`: Menyaring data untuk hanya memilih baris pertama per pegawai yang valid.
+- `ORDER BY msp.LAST_UPDATED_DATE DESC`: Mengurutkan hasil berdasarkan `LAST_UPDATED_DATE` secara menurun.
+- `OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY`: Membatasi hasil berdasarkan parameter `offset` dan `per_page` untuk paginasi.
+
+#### Kesimpulan
+
+**Query pertama** bertujuan untuk mengambil data pegawai dari tabel `mdm_single_pegawai` yang memiliki catatan pendidikan di tabel `SAFM_PEGAWAI_EDUCATION` dan catatan keluarga di tabel `SAFM_PEGAWAI_FAMILY`. Hasil dari query ini mencakup informasi dasar pegawai, seperti **nomor pegawai** (`PERNR`), **nomor identitas pegawai baru** (`nipp_pegawai`), dan **nama pegawai** (`nama_pegawai`). Query juga memastikan bahwa hanya satu baris data yang diambil untuk setiap pegawai yang unik.
+
+### 2. Query Kedua
+
+<details>
+  <summary>Show SQL Query 2</summary>
+
+```sql
+SELECT PERNR,
+          name AS nama,
+          birth_place AS tempat_lahir,
+          birth_date AS tanggal_lahir,
+          id_card_no AS nomor_identitas,
+          id_card_type AS jenis_nomor_identitas,
+          nationality AS nationalitas,
+          job_title AS pekerjaan,
+          family_type_desc AS hubungan_keluarga,
+          gender AS jenis_kelamin,
+          family_type_desc AS status_pernikahan,
+          religiontext AS agama,
+          married_status_date AS tanggal_menikah,
+          tangdinas AS status_tanggungan_dinas,
+          family_type_desc AS status_ahli_waris
+        FROM SAFM_PEGAWAI_FAMILY
+        WHERE PERNR IN (${pernrList})
+```
+
+</details>
+
+#### Penjelasan
+
+**Query kedua** ini digunakan untuk mengambil data keluarga pegawai berdasarkan `PERNR` yang diperoleh dari query pertama.
+
+- `SELECT`: Mengambil kolom-kolom terkait informasi keluarga pegawai seperti nama, tempat dan tanggal lahir, nomor identitas, pekerjaan, hubungan keluarga, jenis kelamin, status pernikahan, agama, dan status tanggungan.
+- `WHERE PERNR IN (${pernrList})`: Menyaring data berdasarkan daftar PERNR yang diberikan dari hasil query pertama.
+
+#### Kesimpulan
+
+**Query kedua** bertujuan untuk mengambil data keluarga pegawai berdasarkan `PERNR` yang diperoleh dari query pertama. Query ini mengembalikan informasi tentang **anggota keluarga pegawai**, termasuk nama, tempat dan tanggal lahir, nomor identitas, pekerjaan, hubungan keluarga, jenis kelamin, dan status pernikahan.
