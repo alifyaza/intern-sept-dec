@@ -22,12 +22,18 @@ SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
     - [Contoh Output](#contoh-output)
   - [API 3: Get Data Keluarga Pegawai](#api-3-get-data-keluarga-pegawai)
     - [1. Query Pertama](#1-query-pertama-1)
-      - [1. CTE `tpegawai`](#1-cte-tpegawai)
+      - [1. CTE (Common Table Expression) `tpegawai`](#1-cte-common-table-expression-tpegawai-2)
       - [2. Query Utama](#2-query-utama-1)
       - [Kesimpulan](#kesimpulan-3)
     - [2. Query Kedua](#2-query-kedua-1)
       - [Penjelasan](#penjelasan)
       - [Kesimpulan](#kesimpulan-4)
+  - [API 4: Get Data Cuti Pegawai](#api-4-get-data-cuti-pegawai)
+    - [1. Query Pertama](#1-query-pertama-2)
+      - [1. CTE (Common Table Expression) tpegawai](#1-cte-common-table-expression-tpegawai-3)
+      - [2. Mengambil Data dari CTE `tpegawai`](#2-mengambil-data-dari-cte-tpegawai)
+    - [2. Query Kedua](#2-query-kedua-2)
+    - [Kesimpulan](#kesimpulan-5)
 
 ## API 1: Get Identitas Pegawai
 <details>
@@ -147,7 +153,7 @@ Berikut adalah  yang memuat informasi dasar dari query 1:
 | `sp.TITLE2`                                      | `gelar_akademik2`                 | Gelar akademik tambahan                      |  `SAFM_PEGAWAI`                           |
 | `sp.ADDTITLE`                                    | `gelar_akademik3`                 | Gelar akademik tambahan lainnya              |  `SAFM_PEGAWAI`                           |
 | `msp.PNALT_NEW`                                  | `nipp`                            | NIPP pegawai (sama dengan `nipp_pegawai`)    |  `MDM_SINGLE_PEGAWAI`                      |
-| `sp.OFFICMAIL`                                   | `email_korporat`                  | Email korporat pegawai                       |  `SAFM_PEGAWAI`                           |
+| `sp.OFFICMAIL`                                      | `email_korporat`                  | Email korporat pegawai                       |  `SAFM_PEGAWAI`                           |
 | `sp.CONTRACTTYPETEXT`                            | `status`                          | Status pegawai                               |  `SAFM_PEGAWAI`                           |
 | `msp.plans`                                      | `nama_posisi_aktif`               | Nama posisi aktif pegawai                    |  `MDM_SINGLE_PEGAWAI`                      |
 | `msp.subdi_text`                                 | `nama_organisasi_aktif`           | Nama organisasi aktif pegawai                |  `MDM_SINGLE_PEGAWAI`                      |
@@ -415,7 +421,7 @@ WITH tpegawai AS ( SELECT msp.*, ROW_NUMBER () OVER(PARTITION BY msp.pernr, msp.
 
 **Query pertama** digunakan untuk mengambil data pegawai dari tabel `mdm_single_pegawai` yang memiliki catatan di tabel `SAFM_PEGAWAI_FAMILY`, serta informasi dasar pegawai. Query ini menyaring data berdasarkan pegawai yang valid dan terbaru.
 
-#### 1. CTE `tpegawai`
+#### 1. CTE (Common Table Expression) `tpegawai`
 
 ```sql
 WITH tpegawai AS (
@@ -495,3 +501,100 @@ SELECT PERNR,
 #### Kesimpulan
 
 **Query kedua** bertujuan untuk mengambil data keluarga pegawai berdasarkan `PERNR` yang diperoleh dari query pertama. Query ini mengembalikan informasi tentang **anggota keluarga pegawai**, termasuk nama, tempat dan tanggal lahir, nomor identitas, pekerjaan, hubungan keluarga, jenis kelamin, dan status pernikahan.
+
+## API 4: Get Data Cuti Pegawai
+
+### 1. Query Pertama
+
+<details>
+  <summary>Show SQL Query 1</summary>
+
+```sql
+WITH tpegawai AS ( SELECT msp.*,ROW_NUMBER () OVER(PARTITION BY msp.pernr, msp.pnalt_new ORDER BY msp.pernr ASC) AS row_num 
+        FROM mdm_single_pegawai msp JOIN (SELECT DISTINCT PERNR FROM SAFM_CUTI_SPPD ) scs ON msp.PERNR = scs.PERNR  WHERE 1=1 ${appendQueryNipp} ${appendQueryPernr} ${appendQuery} )
+        SELECT msp.PERNR,
+        count(*) OVER() AS total_count ,
+        msp.PNALT_NEW AS nipp_pegawai,
+            msp.cname AS nama_pegawai
+        FROM tpegawai msp
+        JOIN (SELECT DISTINCT PERNR FROM SAFM_CUTI_SPPD) scs on msp.PERNR = scs.PERNR
+        WHERE msp.pnalt_new IS NOT NULL and msp.row_num = 1 ${appendQueryNipp} ${appendQueryPernr} ${appendQuery}
+        ORDER BY msp.LAST_UPDATED_DATE DESC
+        OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY
+```
+</details>
+
+**Query pertama** digunakan untuk mendapatkan data pegawai beserta informasi terkait dari tabel `mdm_single_pegawai` dan `SAFM_CUTI_SPPD`, serta memfilter dan mengurutkannya berdasarkan beberapa kondisi. Hanya digunakan untuk paginasi dan menampilkan daftar pegawai berdasarkan kondisi yang ditentukan (misalnya, berdasarkan nipp, pernr, atau query tambahan lainnya).
+
+#### 1. CTE (Common Table Expression) tpegawai
+
+```sql
+WITH tpegawai AS (
+    SELECT msp.*, ROW_NUMBER() OVER(PARTITION BY msp.pernr, msp.pnalt_new ORDER BY msp.pernr ASC) AS row_num
+    FROM mdm_single_pegawai msp
+    JOIN (
+        SELECT DISTINCT PERNR
+        FROM SAFM_CUTI_SPPD
+    ) scs ON msp.PERNR = scs.PERNR
+    WHERE 1=1 ${appendQueryNipp} ${appendQueryPernr} ${appendQuery}
+)
+```
+
+- `mdm_single_pegawai` (alias msp) adalah tabel utama yang diquery.
+- `ROW_NUMBER()` digunakan untuk memberikan nomor urut pada setiap baris dalam partisi yang dikelompokkan berdasarkan `pernr` dan `pnalt_new`. Data diurutkan berdasarkan `pernr` secara ascending.
+- `JOIN` dengan subquery yang memilih PERNR dari `SAFM_CUTI_SPPD` untuk hanya mendapatkan pegawai yang memiliki data cuti.
+- `WHERE 1=1` adalah teknik umum untuk mempermudah penambahan kondisi dinamis.
+
+
+#### 2. Mengambil Data dari CTE `tpegawai`
+
+```sql
+SELECT msp.PERNR,
+       count(*) OVER() AS total_count,
+       msp.PNALT_NEW AS nipp_pegawai,
+       msp.cname AS nama_pegawai
+FROM tpegawai msp
+JOIN (SELECT DISTINCT PERNR FROM SAFM_CUTI_SPPD) scs on msp.PERNR = scs.PERNR
+WHERE msp.pnalt_new IS NOT NULL AND msp.row_num = 1 ${appendQueryNipp} ${appendQueryPernr} ${appendQuery}
+ORDER BY msp.LAST_UPDATED_DATE DESC
+OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY
+```
+
+- `count(*) OVER() AS total_count`: Menghitung total jumlah baris yang diambil.
+- `WHERE msp.pnalt_new IS NOT NULL AND msp.row_num = 1`: Memastikan hanya baris pertama untuk setiap pegawai (berdasarkan `pnalt_new`) yang diambil, dan `pnalt_new` tidak boleh kosong.
+- `ORDER BY msp.LAST_UPDATED_DATE DESC`: Mengurutkan hasil berdasarkan tanggal terakhir diperbarui.
+- `OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY`: Pagination; mengambil halaman tertentu dari hasil dengan jumlah baris yang ditentukan.
+
+### 2. Query Kedua
+
+<details>
+  <summary>Show SQL Query 2</summary>
+
+```sql
+SELECT PERNR,
+            ATT_ABSENCE_TYPE AS id_cuti,
+            ATT_TYPE_TEXT AS jenis_cuti,
+            STATUS AS status_pengajuan_cuti,
+            CREATED_DATE AS tanggal_pengajuan_cuti,
+            START_DATE AS tanggal_mulai_cuti,
+            END_DATE AS tanggal_selesai_cuti
+        FROM SAFM_CUTI_SPPD
+        WHERE ATT_ABSENCE_TYPE NOT IN (`
+        + `'5009', '4012', '4019', '4020',`
+        + `'4021', '4045', '4046', '4047',`
+        + `'4048', '5001', '5005', '5006',`
+        + `'5007', '5009', '5010', '5013',`
+        + `'5101'`
+        + `) AND PERNR IN (${pernrList})
+```
+</details>
+
+**Query kedua** mengambil data cuti pegawai yang sesuai dengan kondisi tertentu, tidak termasuk dalam daftar tipe cuti yang dikecualikan.
+
+- `ATT_ABSENCE_TYPE NOT IN (...)`: Bagian ini dari query digunakan untuk mengecualikan beberapa jenis absensi berdasarkan kodenya. Kode-kode yang disebutkan dalam daftar tersebut tidak akan disertakan dalam hasil query.
+- **Daftar Kode**: Kode-kode dalam daftar '5009', '4012', '4019', '4020', ... adalah tipe-tipe absensi yang ingin dikecualikan dari hasil query. Misalnya, jika kode '5009' mewakili "Cuti Sakit", maka query ini akan mengecualikan semua entri yang memiliki kode tersebut.
+- `PERNR IN (${pernrList})`: Menyaring data untuk PERNR yang termasuk dalam daftar pernrList.
+
+### Kesimpulan
+
+**Query pertama** dan **kedua** memisahkan pengambilan data pegawai dan rincian cuti untuk meningkatkan efisiensi dan fokus masing-masing proses: **query pertama** mengumpulkan data dasar pegawai yang memiliki catatan cuti, termasuk total count dan informasi identitas pegawai, sementara **query kedua** memberikan rincian spesifik tentang pengajuan cuti untuk pegawai yang relevan. Pemisahan ini memungkinkan paginasi dan optimisasi berdasarkan kebutuhan yang berbeda, menghindari kompleksitas dan beban kinerja dari penggabungan query yang dapat menghambat performa sistem.
