@@ -1,6 +1,6 @@
 # SQL Query API Explanation
 
-SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM](https://docs.google.com/spreadsheets/d/1su75jhJ9AiyeI3ncOPzaNgRqkYcNSAYCt2AdlEyGPTA/edit?gid=1157891821#gid=1157891821)
+SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
 
 ## Table of Contents
 - [SQL Query API Explanation](#sql-query-api-explanation)
