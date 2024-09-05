@@ -8,6 +8,7 @@ SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
   - [API 1: Get Identitas Pegawai](#api-1-get-identitas-pegawai)
     - [1. CTE (Common Table Expression) `tpegawai`](#1-cte-common-table-expression-tpegawai)
     - [2. Query Utama](#2-query-utama)
+    - [Cara Penggunaan](#cara-penggunaan)
     - [Kesimpulan](#kesimpulan)
   - [API 2: Get Data Pendidikan Pegawai](#api-2-get-data-pendidikan-pegawai)
     - [1. Query Pertama](#1-query-pertama)
@@ -19,7 +20,7 @@ SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
       - [Struktur dan Penjelasan:](#struktur-dan-penjelasan-1)
         - [Pengambilan Data Pendidikan:](#pengambilan-data-pendidikan)
       - [Kesimpulan](#kesimpulan-2)
-    - [Contoh Output](#contoh-output)
+    - [Cara Penggunaan](#cara-penggunaan-1)
   - [API 3: Get Data Keluarga Pegawai](#api-3-get-data-keluarga-pegawai)
     - [1. Query Pertama](#1-query-pertama-1)
       - [1. CTE (Common Table Expression) `tpegawai`](#1-cte-common-table-expression-tpegawai-2)
@@ -34,6 +35,13 @@ SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
       - [2. Mengambil Data dari CTE `tpegawai`](#2-mengambil-data-dari-cte-tpegawai)
     - [2. Query Kedua](#2-query-kedua-2)
     - [Kesimpulan](#kesimpulan-5)
+  - [API 5: Get Data Indisipliner Pegawai](#api-5-get-data-indisipliner-pegawai)
+    - [1. Query Pertama](#1-query-pertama-3)
+      - [1. CTE `tpegawai`](#1-cte-tpegawai)
+      - [2. Query Utama](#2-query-utama-2)
+    - [2. Query Kedua](#2-query-kedua-3)
+    - [Cara Penggunaan](#cara-penggunaan-2)
+    - [Kesimpulan](#kesimpulan-6)
 
 ## API 1: Get Identitas Pegawai
 <details>
@@ -245,6 +253,31 @@ Berikut adalah  yang memuat informasi dasar dari query 1:
       - Menampilkan 100 baris pertama dari hasil query
       - Bagian ini ada untuk menangani skenario yang lebih umum di mana pnalt_new tidak dibatasi ke satu nilai saja, memungkinkan query ini digunakan dalam berbagai konteks tanpa perlu banyak modifikasi.
 
+### Cara Penggunaan
+
+Query ini digunakan untuk mendapatkan data identitas pegawai yang menunjukkan informasi dasar lainnya, yang disajikan dalam bentuk tabel. Untuk menjalankan query ini, user perlu menyertakan nilai spesifik dari `pnalt_new` (atau `nipp_pegawai`) pada bagian yang sesuai.
+1. **Penyesuaian Parameter**
+   
+   Ganti `(value)` di bagian berikut (bagian CTE `tpegawai`) dengan `pnalt_new` yang diinginkan:
+   ```sql
+   ...
+   WHERE 1=1 
+   AND c.CNAME_ATS is not NULL 
+   AND msp.pnalt_new = '(value)'
+   ...
+   ```
+   Contoh: Untuk melihat data pegawai dengan `pnalt_new = '104641'`, ubah menjadi:
+   ```sql
+   ...
+   WHERE 1=1 
+   AND c.CNAME_ATS is not NULL 
+   AND msp.pnalt_new = '104641'
+   ...
+   ```
+2. **Hasil Query**
+   
+   Query akan menampilkan informasi pegawai dalam bentuk tabel, termasuk data seperti nama, posisi, atasan, dan informasi kontak.
+
 ### Kesimpulan
 
 Dalam query tersebut, dimisalkan data dengan `pnalt_new = '104641'` akan diproses, dan hanya satu baris data dengan `row_num = 1` (yang memiliki `LAST_UPDATED_DATE` paling awal) yang akan diambil. Karena query ini difokuskan pada satu nilai `pnalt_new` yang spesifik, hasil akhirnya memang hanya akan mengembalikan satu baris data yang memenuhi kondisi tersebut.
@@ -331,7 +364,6 @@ OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY
     - `OFFSET` akan bernilai 20 (melewati 20 baris pertama).
 `FETCH NEXT 10 ROWS ONLY` akan mengambil 10 baris berikutnya (baris ke-21 hingga ke-30).
 
-
 #### Kesimpulan
 
 **Query pertama** mengembalikan daftar pegawai yang memiliki data pendidikan tertentu dengan memastikan hanya satu baris data per pegawai (ditentukan oleh `row_num = 1`) yang diambil dari tabel `mdm_single_pegawai`, berdasarkan urutan terbaru (`LAST_UPDATED_DATE`). Data ini disaring dan diurutkan menggunakan nomor urut yang dihitung untuk memastikan hanya baris teratas per grup `pernr` dan `pnalt_new` yang diambil. Kolom `total_count` digunakan untuk menunjukkan jumlah total baris yang dihasilkan oleh query sebelum penerapan pagination, yang berguna untuk mengetahui total jumlah hasil tanpa memperhitungkan batasan halaman.
@@ -378,15 +410,39 @@ Query kedua mengambil detail pendidikan untuk pegawai berdasarkan daftar PERNR y
 - Mengambil informasi tentang pendidikan seperti level pendidikan, nama institusi, tanggal mulai, tanggal selesai, nomor ijazah, dan hasil pendidikan dari tabel `SAFM_PEGAWAI_EDUCATION`.
 - Hanya pegawai yang PERNR-nya ada dalam daftar yang diberikan (`${pernrList}`) yang akan dimasukkan dalam hasil.
 
-### Contoh Output
+### Cara Penggunaan
 
-- Query Pertama
+- **Query Pertama**:
+
+Untuk memakai query API ini, kita perlu menjalankan dua kali: query pertama lalu query kedua. Pada query pertama, user tidak perlu menginisialisasikan nilai untuk value `pernr`, `pnalt_new`, maupun `company_code`. Cukup gunakan query pertama dengan menghapus `${condition}` pada bagian CTE.
+
+Maka hasil outputnya akan seperti contoh berikut:
 
 | PERNR       | total_count | nipp_pegawai | nama_pegawai |
 |-------------|-------------|--------------|--------------|
 | 000000284848| 50          | 123456789    | John Doe     |
 
-- Query Kedua (untuk `PERNR 000000284848`):
+- **Query Kedua**:
+
+Pada **query kedua**, user perlu melakukan inisialisasi nilai pernr yang bisa dilakukan sebelum ataupun sesudah eksekusi. Jika dilakukan sebelum eksekusi, maka inisialisasi nilai dilakukan langsung pada code dengan mengubah bagian berikut:
+
+```sql
+...
+WHERE PERNR IN (${pernrList})
+...
+```
+
+Misal user ingin mencari data dengan pernr = '00016480', maka code diubah menjadi:
+
+```sql
+...
+WHERE PERNR IN ('00016480')
+...
+```
+
+Namun, jika user ingin melakukan inisialisasi setelah eksekusi query. Maka user bisa mengubah value pada bind parameter tab yang tampil. Pada tab tersebut, user diharuskan untuk memasukkan nilai `pernrList` pada tab tersebut dengan tanda ('), contohnya adalah `'00016480'`
+
+Maka hasil outputnya akan seperti contoh berikut:
 
 | PERNR       | level_pendidikan | nama_institusi_pendidikan | tanggal_mulai | tanggal_selesai | nomor_ijazah | ijazah | hasil_pendidikan |
 |-------------|-------------------|---------------------------|---------------|-----------------|--------------|--------|------------------|
@@ -598,3 +654,57 @@ SELECT PERNR,
 ### Kesimpulan
 
 **Query pertama** dan **kedua** memisahkan pengambilan data pegawai dan rincian cuti untuk meningkatkan efisiensi dan fokus masing-masing proses: **query pertama** mengumpulkan data dasar pegawai yang memiliki catatan cuti, termasuk total count dan informasi identitas pegawai, sementara **query kedua** memberikan rincian spesifik tentang pengajuan cuti untuk pegawai yang relevan. Pemisahan ini memungkinkan paginasi dan optimisasi berdasarkan kebutuhan yang berbeda, menghindari kompleksitas dan beban kinerja dari penggabungan query yang dapat menghambat performa sistem.
+
+## API 5: Get Data Indisipliner Pegawai
+
+### 1. Query Pertama
+
+<details>
+  <summary>Show SQL Query 1</summary>
+
+```sql
+WITH tpegawai AS ( SELECT msp.*, ROW_NUMBER () OVER(PARTITION BY msp.pernr, msp.pnalt_new ORDER BY msp.pernr ASC) AS row_num
+        FROM mdm_single_pegawai msp JOIN (SELECT DISTINCT PERNR FROM SAFM_PEGAWAI_DISCIPLINE) spd on msp.PERNR = spd.PERNR  WHERE 1=1 ${appendQueryNipp} ${appendQueryPernr} ${appendQuery} )
+        SELECT msp.PERNR,
+            count(*) OVER() AS total_count ,
+            msp.PNALT_NEW AS nipp_pegawai,
+            msp.cname AS nama_pegawai
+        FROM tpegawai msp
+        JOIN (SELECT DISTINCT PERNR FROM SAFM_PEGAWAI_DISCIPLINE) spd on msp.PERNR = spd.PERNR
+        WHERE msp.pnalt_new IS NOT NULL and msp.row_num = 1  ${appendQueryNipp} ${appendQueryPernr} ${appendQuery}
+        ORDER BY msp.LAST_UPDATED_DATE DESC
+        OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY
+```
+
+</details>
+
+**Query pertama** bertujuan untuk mendapatkan data pegawai yang memiliki catatan indisipliner. Berikut adalah langkah-langkah yang dilakukan:
+
+#### 1. CTE `tpegawai`
+- Data yang diambil dari tabel mdm_single_pegawai dalam query tersebut adalah data pegawai yang juga ada di tabel `SAFM_PEGAWAI_DISCIPLINE`. Pengambilan data ini didasarkan pada kolom `PERNR`, yang merupakan identifier unik untuk setiap pegawai.
+- Data ditambahkan kolom `row_num` yang menghitung nomor urut berdasarkan pengelompokan (`PARTITION BY`) `pernr` dan `pnalt_new`. Data ini diurutkan berdasarkan `pernr` secara ascending.
+
+#### 2. Query Utama
+- Mengambil data `PERNR`, `PNALT_NEW` (sebagai `nipp_pegawai`), `cname` (sebagai `nama_pegawai`), dan menghitung total baris (`count(*) OVER() AS total_count`).
+Bergabung dengan tabel `SAFM_PEGAWAI_DISCIPLINE` untuk memastikan hanya pegawai dengan catatan indisipliner yang dipilih.
+- Filter menggunakan kondisi `pnalt_new IS NOT NULL dan row_num = 1` untuk memastikan hanya baris pertama dari setiap kelompok `PERNR` dan `PNALT_NEW` yang dipilih.
+- Data diurutkan berdasarkan `LAST_UPDATED_DATE` secara descending dan menggunakan pagination dengan `OFFSET` dan `FETCH NEXT`.
+
+### 2. Query Kedua
+
+- Mengambil data pelanggaran, jenis hukuman, nomor SK, tanggal-tanggal terkait penalti, dan informasi lainnya dari tabel `SAFM_PEGAWAI_DISCIPLINE`.
+- Hanya data dari pegawai yang ada dalam `pernrList` (hasil dari query pertama) yang diambil.
+
+### Cara Penggunaan
+
+1. **Jalankan Query Pertama**:
+   - Hapus bagian `${appendQueryNipp} ${appendQueryPernr} ${appendQuery}`
+   - Gunakan query pertama untuk mendapatkan daftar pegawai yang memiliki catatan indisipliner. Anda dapat mengatur filter tambahan seperti pernr, nipp, atau tanggal jika diperlukan.
+   - Tentukan offset dan per_page untuk mengambil data dalam jumlah tertentu per halaman.
+2. **Jalankan Query Kedua**:
+   - Setelah mendapatkan `PERNR` dari query pertama, gunakan query kedua untuk mengambil detail pelanggaran terkait.
+   - Masukkan `pernrList` yang diperoleh dari query pertama ke dalam query kedua untuk mendapatkan informasi detail mengenai pelanggaran.
+
+### Kesimpulan
+
+Query ini digunakan untuk mendapatkan data pegawai yang memiliki catatan indisipliner, kemudian menampilkan detail pelanggaran mereka. Query pertama mengambil daftar pegawai berdasarkan filter tertentu, sedangkan query kedua mengambil detail pelanggaran untuk pegawai tersebut.
