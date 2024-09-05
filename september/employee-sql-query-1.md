@@ -1,9 +1,9 @@
-# SQL Query API Explanation
+# SQL Query API Explanation (1)
 
 SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
 
 ## Table of Contents
-- [SQL Query API Explanation](#sql-query-api-explanation)
+- [SQL Query API Explanation (1)](#sql-query-api-explanation-1)
   - [Table of Contents](#table-of-contents)
   - [API 1: Get Identitas Pegawai](#api-1-get-identitas-pegawai)
     - [1. CTE (Common Table Expression) `tpegawai`](#1-cte-common-table-expression-tpegawai)
