@@ -2,6 +2,8 @@
 
 SQL Query API didapatkan dari spreadsheet [Mapping Data Portaverse MDM]()
 
+Dokumen ini memberikan penjelasan untuk Query API nomor 1 sampai dengan nomor 5.
+
 ## Table of Contents
 - [SQL Query API Explanation (1)](#sql-query-api-explanation-1)
   - [Table of Contents](#table-of-contents)
